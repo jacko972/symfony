@@ -292,6 +292,10 @@ class CrawlerTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(1, $crawler->selectButton('BarValue')->count(), '->selectButton() selects buttons');
         $this->assertEquals(1, $crawler->selectButton('BarName')->count(), '->selectButton() selects buttons');
         $this->assertEquals(1, $crawler->selectButton('BarId')->count(), '->selectButton() selects buttons');
+
+        $this->assertEquals(1, $crawler->selectButton('ButtonValue')->count(), '->selectButton() selects buttons');
+        $this->assertEquals(1, $crawler->selectButton('ButtonName')->count(), '->selectButton() selects buttons');
+        $this->assertEquals(1, $crawler->selectButton('ButtonId')->count(), '->selectButton() selects buttons');
     }
 
     public function testLink()
@@ -478,7 +482,7 @@ class CrawlerTest extends \PHPUnit_Framework_TestCase
                     <form action="foo">
                         <input type="submit" value="FooValue" name="FooName" id="FooId" />
                         <input type="button" value="BarValue" name="BarName" id="BarId" />
-                        <button value="ButtonValue" name="ButtonName" id="ButtonId" />
+                        <button name="ButtonName" id="ButtonId">ButtonValue</button>
                     </form>
 
                     <ul class="first">
