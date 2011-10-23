@@ -71,6 +71,9 @@ class HttpUtils
             $this->resetLocale($request);
             $path = $this->generateUrl($path, true);
         }
+        if (0 !== strpos($path, 'http')) {
+            $path = $request->getUriForPath($path);
+        }
 
         $newRequest = Request::create($path, 'get', array(), $request->cookies->all(), array(), $request->server->all());
         if ($session = $request->getSession()) {
@@ -124,11 +127,7 @@ class HttpUtils
         try {
             $parameters = $this->router->match($request->getPathInfo());
 
-            if (isset($parameters['_locale'])) {
-                $context->setParameter('_locale', $parameters['_locale']);
-            } elseif ($session = $request->getSession()) {
-                $context->setParameter('_locale', $session->getLocale());
-            }
+            $context->setParameter('_locale', isset($parameters['_locale']) ? $parameters['_locale'] : $request->getLocale());
         } catch (\Exception $e) {
             // let's hope user doesn't use the locale in the path
         }

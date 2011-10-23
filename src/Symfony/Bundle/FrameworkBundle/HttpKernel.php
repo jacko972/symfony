@@ -21,6 +21,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 /**
  * This HttpKernel is used to manage scope changes of the DI container.
  *
+ * @author Fabien Potencier <fabien@symfony.com>
  * @author Johannes M. Schmitt <schmittjoh@gmail.com>
  */
 class HttpKernel extends BaseHttpKernel
@@ -124,7 +125,7 @@ class HttpKernel extends BaseHttpKernel
 
         // controller or URI?
         if (0 === strpos($controller, '/')) {
-            $subRequest = Request::create($controller, 'get', array(), $request->cookies->all(), array(), $request->server->all());
+            $subRequest = Request::create($request->getUriForPath($controller), 'get', array(), $request->cookies->all(), array(), $request->server->all());
             $subRequest->setSession($request->getSession());
         } else {
             $options['attributes']['_controller'] = $controller;

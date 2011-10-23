@@ -21,6 +21,7 @@ use Symfony\Component\EventDispatcher\Event;
  *
  * @author Fabien Potencier <fabien@symfony.com>
  * @author Bernhard Schussek <bernhard.schussek@symfony.com>
+ * @author Jordan Alliot <jordan.alliot@gmail.com>
  */
 class ContainerAwareEventDispatcher extends EventDispatcher
 {
@@ -72,6 +73,59 @@ class ContainerAwareEventDispatcher extends EventDispatcher
     }
 
     /**
+    * @see EventDispatcherInterface::hasListeners
+    */
+    public function hasListeners($eventName = null)
+    {
+        if (null === $eventName) {
+            return (Boolean) count($this->listenerIds) || (Boolean) count($this->listeners);
+        }
+
+        if (isset($this->listenerIds[$eventName])) {
+            return true;
+        }
+
+        return parent::hasListeners($eventName);
+    }
+
+    /**
+    * @see EventDispatcherInterface::getListeners
+    */
+    public function getListeners($eventName = null)
+    {
+        if (null === $eventName) {
+            foreach ($this->listenerIds as $serviceEventName => $listners) {
+                $this->lazyLoad($serviceEventName);
+            }
+        } else {
+            $this->lazyLoad($eventName);
+        }
+
+        return parent::getListeners($eventName);
+    }
+
+    /**
+     * Adds a service as event subscriber
+     *
+     * @param string $serviceId The service ID of the subscriber service
+     * @param string $class     The service's class name (which must implement EventSubscriberInterface)
+     */
+    public function addSubscriberService($serviceId, $class)
+    {
+        foreach ($class::getSubscribedEvents() as $eventName => $params) {
+            if (is_string($params)) {
+                $this->listenerIds[$eventName][] = array($serviceId, $params, 0);
+            } elseif (is_string($params[0])) {
+                $this->listenerIds[$eventName][] = array($serviceId, $params[0], $params[1]);
+            } else {
+                foreach ($params as $listener) {
+                    $this->listenerIds[$eventName][] = array($serviceId, $listener[0], isset($listener[1]) ? $listener[1] : 0);
+                }
+            }
+        }
+    }
+
+    /**
      * {@inheritDoc}
      *
      * Lazily loads listeners for this event from the dependency injection
@@ -80,6 +134,26 @@ class ContainerAwareEventDispatcher extends EventDispatcher
      * @throws \InvalidArgumentException if the service is not defined
      */
     public function dispatch($eventName, Event $event = null)
+    {
+        $this->lazyLoad($eventName);
+
+        parent::dispatch($eventName, $event);
+    }
+
+    public function getContainer()
+    {
+        return $this->container;
+    }
+
+    /**
+     * Lazily loads listeners for this event from the dependency injection
+     * container.
+     *
+     * @param string $eventName The name of the event to dispatch. The name of
+     *                          the event is the name of the method that is
+     *                          invoked on listeners.
+     */
+    protected function lazyLoad($eventName)
     {
         if (isset($this->listenerIds[$eventName])) {
             foreach ($this->listenerIds[$eventName] as $args) {
@@ -97,7 +171,5 @@ class ContainerAwareEventDispatcher extends EventDispatcher
                 $this->listeners[$eventName][$key] = $listener;
             }
         }
-
-        parent::dispatch($eventName, $event);
     }
 }

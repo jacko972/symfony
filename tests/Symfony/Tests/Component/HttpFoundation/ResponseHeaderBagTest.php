@@ -69,7 +69,7 @@ class ResponseHeaderBagTest extends \PHPUnit_Framework_TestCase
         $bag = new ResponseHeaderBag(array());
         $bag->setCookie(new Cookie('foo', 'bar'));
 
-        $this->assertContains("Set-Cookie: foo=bar; path=/; httponly", explode("\r\n", $bag->__toString()));
+        $this->assertContains("Set-Cookie: foo=bar; httponly", explode("\r\n", $bag->__toString()));
 
         $bag->clearCookie('foo');
 
@@ -90,7 +90,7 @@ class ResponseHeaderBagTest extends \PHPUnit_Framework_TestCase
         $this->assertContains("Set-Cookie: foo=bar; path=/path/foo; domain=foo.bar; httponly", $headers);
         $this->assertContains("Set-Cookie: foo=bar; path=/path/foo; domain=foo.bar; httponly", $headers);
         $this->assertContains("Set-Cookie: foo=bar; path=/path/bar; domain=bar.foo; httponly", $headers);
-        $this->assertContains("Set-Cookie: foo=bar; path=/; httponly", $headers);
+        $this->assertContains("Set-Cookie: foo=bar; httponly", $headers);
 
         $cookies = $bag->getCookies(ResponseHeaderBag::COOKIES_ARRAY);
         $this->assertTrue(isset($cookies['foo.bar']['/path/foo']['foo']));
@@ -117,5 +117,60 @@ class ResponseHeaderBagTest extends \PHPUnit_Framework_TestCase
 
         $cookies = $bag->getCookies(ResponseHeaderBag::COOKIES_ARRAY);
         $this->assertFalse(isset($cookies['foo.bar']));
+    }
+
+    /**
+     * @expectedException \InvalidArgumentException
+     */
+    public function testMakeDispositionInvalidDisposition()
+    {
+        $headers = new ResponseHeaderBag();
+
+        $headers->makeDisposition('invalid', 'foo.html');
+    }
+
+    /**
+     * @dataProvider provideMakeDisposition
+     */
+    public function testMakeDisposition($disposition, $filename, $filenameFallback, $expected)
+    {
+        $headers = new ResponseHeaderBag();
+
+        $this->assertEquals($expected, $headers->makeDisposition($disposition, $filename, $filenameFallback));
+    }
+
+    public function provideMakeDisposition()
+    {
+        return array(
+            array('attachment', 'foo.html', 'foo.html', 'attachment; filename="foo.html"'),
+            array('attachment', 'foo.html', '', 'attachment; filename="foo.html"'),
+            array('attachment', 'foo bar.html', '', 'attachment; filename="foo bar.html"'),
+            array('attachment', 'foo "bar".html', '', 'attachment; filename="foo \\"bar\\".html"'),
+            array('attachment', 'foo%20bar.html', 'foo bar.html', 'attachment; filename="foo bar.html"; filename*=utf-8\'\'foo%2520bar.html'),
+            array('attachment', 'föö.html', 'foo.html', 'attachment; filename="foo.html"; filename*=utf-8\'\'f%C3%B6%C3%B6.html'),
+        );
+    }
+
+    /**
+     * @dataProvider provideMakeDispositionFail
+     * @expectedException \InvalidArgumentException
+     */
+    public function testMakeDispositionFail($disposition, $filename)
+    {
+        $headers = new ResponseHeaderBag();
+
+        $headers->makeDisposition($disposition, $filename);
+    }
+
+    public function provideMakeDispositionFail()
+    {
+        return array(
+            array('attachment', 'foo%20bar.html'),
+            array('attachment', 'foo/bar.html'),
+            array('attachment', '/foo.html'),
+            array('attachment', 'foo\bar.html'),
+            array('attachment', '\foo.html'),
+            array('attachment', 'föö.html'),
+        );
     }
 }

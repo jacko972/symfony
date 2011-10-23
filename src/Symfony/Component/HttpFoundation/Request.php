@@ -11,8 +11,6 @@
 
 namespace Symfony\Component\HttpFoundation;
 
-use Symfony\Component\HttpFoundation\SessionStorage\NativeSessionStorage;
-
 /**
  * Request represents an HTTP request.
  *
@@ -46,14 +44,14 @@ class Request
     public $query;
 
     /**
-     * @var \Symfony\Component\HttpFoundation\ParameterBag
+     * @var \Symfony\Component\HttpFoundation\ServerBag
      *
      * @api
      */
     public $server;
 
     /**
-     * @var \Symfony\Component\HttpFoundation\ParameterBag
+     * @var \Symfony\Component\HttpFoundation\FileBag
      *
      * @api
      */
@@ -84,6 +82,8 @@ class Request
     protected $method;
     protected $format;
     protected $session;
+    protected $locale;
+    protected $defaultLocale = 'en';
 
     static protected $formats;
 
@@ -213,6 +213,14 @@ class Request
             $defaults['HTTP_HOST'] = $defaults['HTTP_HOST'].':'.$components['port'];
         }
 
+        if (isset($components['user'])) {
+            $defaults['PHP_AUTH_USER'] = $components['user'];
+        }
+
+        if (isset($components['pass'])) {
+            $defaults['PHP_AUTH_PW'] = $components['pass'];
+        }
+
         if (!isset($components['path'])) {
             $components['path'] = '';
         }
@@ -290,15 +298,15 @@ class Request
             $dup->server = new ServerBag($server);
             $dup->headers = new HeaderBag($dup->server->getHeaders());
         }
-        $this->languages = null;
-        $this->charsets = null;
-        $this->acceptableContentTypes = null;
-        $this->pathInfo = null;
-        $this->requestUri = null;
-        $this->baseUrl = null;
-        $this->basePath = null;
-        $this->method = null;
-        $this->format = null;
+        $dup->languages = null;
+        $dup->charsets = null;
+        $dup->acceptableContentTypes = null;
+        $dup->pathInfo = null;
+        $dup->requestUri = null;
+        $dup->baseUrl = null;
+        $dup->basePath = null;
+        $dup->method = null;
+        $dup->format = null;
 
         return $dup;
     }
@@ -572,6 +580,26 @@ class Request
     }
 
     /**
+     * Returns the user.
+     *
+     * @return string|null
+     */
+    public function getUser()
+    {
+        return $this->server->get('PHP_AUTH_USER');
+    }
+
+    /**
+     * Returns the password.
+     *
+     * @return string|null
+     */
+    public function getPassword()
+    {
+        return $this->server->get('PHP_AUTH_PW');
+    }
+
+    /**
      * Returns the HTTP host being requested.
      *
      * The port name will be appended to the host if it's non-standard.
@@ -624,7 +652,20 @@ class Request
             $qs = '?'.$qs;
         }
 
-        return $this->getScheme().'://'.$this->getHttpHost().$this->getBaseUrl().$this->getPathInfo().$qs;
+        $auth = '';
+        if ($user = $this->getUser()) {
+            $auth = $user;
+        }
+
+        if ($pass = $this->getPassword()) {
+           $auth .= ":$pass";
+        }
+
+        if ('' !== $auth) {
+           $auth .= '@';
+        }
+
+        return $this->getScheme().'://'.$auth.$this->getHttpHost().$this->getBaseUrl().$this->getPathInfo().$qs;
     }
 
     /**
@@ -853,6 +894,21 @@ class Request
         $this->format = $format;
     }
 
+    public function setDefaultLocale($locale)
+    {
+        $this->setPhpDefaultLocale($this->defaultLocale = $locale);
+    }
+
+    public function setLocale($locale)
+    {
+        $this->setPhpDefaultLocale($this->locale = $locale);
+    }
+
+    public function getLocale()
+    {
+        return null === $this->locale ? $this->defaultLocale : $this->locale;
+    }
+
     /**
      * Checks whether the method is safe or not.
      *
@@ -1065,7 +1121,7 @@ class Request
     {
         $requestUri = '';
 
-        if ($this->headers->has('X_REWRITE_URL')) {
+        if ($this->headers->has('X_REWRITE_URL') && false !== stripos(PHP_OS, 'WIN')) {
             // check this first so IIS will catch
             $requestUri = $this->headers->get('X_REWRITE_URL');
         } elseif ($this->server->get('IIS_WasUrlRewritten') == '1' && $this->server->get('UNENCODED_URL') != '') {
@@ -1196,7 +1252,7 @@ class Request
             $requestUri = substr($requestUri, 0, $pos);
         }
 
-        if ((null !== $baseUrl) && (false === ($pathInfo = substr($requestUri, strlen($baseUrl))))) {
+        if ((null !== $baseUrl) && (false === ($pathInfo = substr(urldecode($requestUri), strlen(urldecode($baseUrl)))))) {
             // If substr() returns false then PATH_INFO is set to an empty string
             return '/';
         } elseif (null === $baseUrl) {
@@ -1220,6 +1276,20 @@ class Request
             'xml'  => array('text/xml', 'application/xml', 'application/x-xml'),
             'rdf'  => array('application/rdf+xml'),
             'atom' => array('application/atom+xml'),
+            'rss'  => array('application/rss+xml'),
         );
+    }
+
+    private function setPhpDefaultLocale($locale)
+    {
+        // if either the class Locale doesn't exist, or an exception is thrown when
+        // setting the default locale, the intl module is not installed, and
+        // the call can be ignored:
+        try {
+            if (class_exists('Locale', false)) {
+                \Locale::setDefault($locale);
+            }
+        } catch (\Exception $e) {
+        }
     }
 }

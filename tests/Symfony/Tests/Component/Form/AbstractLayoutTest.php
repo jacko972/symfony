@@ -383,6 +383,54 @@ abstract class AbstractLayoutTest extends \PHPUnit_Framework_TestCase
         );
     }
 
+
+    public function testSingleChoiceWithPreferredAndNoSeparator()
+    {
+        $form = $this->factory->createNamed('choice', 'na&me', '&a', array(
+            'property_path' => 'name',
+            'choices' => array('&a' => 'Choice&A', '&b' => 'Choice&B'),
+            'preferred_choices' => array('&b'),
+            'multiple' => false,
+            'expanded' => false,
+        ));
+
+        $this->assertWidgetMatchesXpath($form->createView(), array('separator' => null),
+'/select
+    [@name="na&me"]
+    [@required="required"]
+    [
+        ./option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
+        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+    ]
+    [count(./option)=2]
+'
+        );
+    }
+
+    public function testSingleChoiceWithPreferredAndBlankSeparator()
+    {
+        $form = $this->factory->createNamed('choice', 'na&me', '&a', array(
+            'property_path' => 'name',
+            'choices' => array('&a' => 'Choice&A', '&b' => 'Choice&B'),
+            'preferred_choices' => array('&b'),
+            'multiple' => false,
+            'expanded' => false,
+        ));
+
+        $this->assertWidgetMatchesXpath($form->createView(), array('separator' => ''),
+'/select
+    [@name="na&me"]
+    [@required="required"]
+    [
+        ./option[@value="&b"][not(@selected)][.="[trans]Choice&B[/trans]"]
+        /following-sibling::option[@disabled="disabled"][not(@selected)][.=""]
+        /following-sibling::option[@value="&a"][@selected="selected"][.="[trans]Choice&A[/trans]"]
+    ]
+    [count(./option)=3]
+'
+        );
+    }
+
     public function testChoiceWithOnlyPreferred()
     {
         $form = $this->factory->createNamed('choice', 'na&me', '&a', array(
@@ -1120,6 +1168,17 @@ abstract class AbstractLayoutTest extends \PHPUnit_Framework_TestCase
         );
     }
 
+    public function testDateErrorBubbling()
+    {
+        $child = $this->factory->createNamed('date', 'date');
+        $form = $this->factory->createNamed('form', 'form')->add($child);
+        $child->addError(new FormError('Error!'));
+        $view = $form->createView();
+
+        $this->assertEmpty($this->renderErrors($view));
+        $this->assertNotEmpty($this->renderErrors($view['date']));
+    }
+
     public function testBirthDay()
     {
         $form = $this->factory->createNamed('birthday', 'na&me', '2000-02-03', array(
@@ -1644,6 +1703,17 @@ abstract class AbstractLayoutTest extends \PHPUnit_Framework_TestCase
     [count(./select)=2]
 '
         );
+    }
+
+    public function testTimeErrorBubbling()
+    {
+        $child = $this->factory->createNamed('time', 'time');
+        $form = $this->factory->createNamed('form', 'form')->add($child);
+        $child->addError(new FormError('Error!'));
+        $view = $form->createView();
+
+        $this->assertEmpty($this->renderErrors($view));
+        $this->assertNotEmpty($this->renderErrors($view['time']));
     }
 
     public function testTimezone()

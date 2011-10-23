@@ -91,7 +91,7 @@ EOF;
                 if ($optimizable) {
                     for ($j = $i; $j < $keysCount; $j++) {
                         if ($keys[$j] === null) {
-                          continue;
+                            continue;
                         }
 
                         $testRoute = $routeIterator->offsetGet($keys[$j]);
@@ -215,7 +215,7 @@ EOF
 
         if ($scheme = $route->getRequirement('_scheme')) {
             if (!$supportsRedirections) {
-                throw new \LogicException('The "_scheme" requirement is only supported for route dumper that implements RedirectableUrlMatcherInterface.');
+                throw new \LogicException('The "_scheme" requirement is only supported for URL matchers that implement RedirectableUrlMatcherInterface.');
             }
 
             $code[] = sprintf(<<<EOF
